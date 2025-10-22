@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rock · Paper · Scissors — Smart Game</title>
+  <style>
+    :root{
+      --bg:#0f1720; --card:#0b1220; --muted:#94a3b8; --accent:#06b6d4; --glass: rgba(255,255,255,0.04);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071022 0%,#081426 60%);color:#e6eef6}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+    .card{width:960px;max-width:100%;background:linear-gradient(180deg,var(--card),#071123);border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(2,6,23,0.6);backdrop-filter: blur(6px)}
+    header{display:flex;align-items:center;gap:16px}
+    h1{margin:0;font-size:20px;letter-spacing:0.6px}
+    p.lead{margin:6px 0 18px;color:var(--muted);font-size:13px}
+
+    .board{display:grid;grid-template-columns:1fr 320px;gap:20px}
+    @media(max-width:880px){.board{grid-template-columns:1fr}}
+
+    .play-area{background:var(--glass);padding:18px;border-radius:12px}
+    .choices{display:flex;align-items:center;gap:14px;justify-content:center;padding:8px}
+    .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:14px;border-radius:10px;min-width:100px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+    .btn:active{transform:translateY(2px)}
+    .btn .emoji{font-size:28px}
+    .btn .label{display:block;margin-top:6px;font-size:13px;color:var(--muted)}
+    .btn.primary{border-color:rgba(6,182,212,0.15);box-shadow:0 6px 20px rgba(6,182,212,0.06)}
+
+    .status{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+    .score{display:flex;gap:10px;align-items:center}
+    .score .pill{background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;font-weight:600}
+
+    .log{margin-top:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:12px;border-radius:10px;min-height:90px}
+    .log p{margin:6px 0;color:var(--muted);font-size:14px}
+
+    aside.controls{padding:18px;background:linear-gradient(180deg,#06111a,transparent);border-radius:12px}
+    .row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+    label{font-size:13px;color:var(--muted);min-width:110px}
+    select,input[type=range]{flex:1}
+    .result{font-size:16px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);text-align:center;margin-bottom:12px}
+
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:13px}
+    button.reset{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;cursor:pointer}
+
+    .anim-win{border:2px solid rgba(34,197,94,0.18);box-shadow:0 8px 30px rgba(34,197,94,0.06)}
+    .anim-lose{border:2px solid rgba(239,68,68,0.14);box-shadow:0 8px 30px rgba(239,68,68,0.05)}
+    .anim-draw{border:2px solid rgba(234,179,8,0.12);box-shadow:0 8px 30px rgba(234,179,8,0.04)}
+
+    footer.small{margin-top:12px;text-align:center;color:var(--muted);font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="application" aria-label="Rock Paper Scissors game">
+      <header>
+        <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#083046,#0d3142);display:flex;align-items:center;justify-content:center;font-size:22px">✊</div>
+        <div>
+          <h1>Rock · Paper · Scissors — Smart Game</h1>
+          <p class="lead">Play vs a smart CPU — choose difficulty, view stats, or use keyboard keys R/P/S. Best of X rounds supported.</p>
+        </div>
+      </header>
+
+      <div class="board" style="margin-top:18px">
+        <main class="play-area" aria-live="polite">
+          <div class="choices" role="group" aria-label="make your choice">
+            <button class="btn" data-move="rock" title="Rock (R)">
+              <div class="emoji">✊</div>
+              <span class="label">Rock</span>
+            </button>
+            <button class="btn" data-move="paper" title="Paper (P)">
+              <div class="emoji">✋</div>
+              <span class="label">Paper</span>
+            </button>
+            <button class="btn" data-move="scissors" title="Scissors (S)">
+              <div class="emoji">✌️</div>
+              <span class="label">Scissors</span>
+            </button>
+          </div>
+
+          <div class="status">
+            <div class="score">
+              <div class="pill">You: <span id="score-user">0</span></div>
+              <div class="pill">CPU: <span id="score-cpu">0</span></div>
+              <div class="pill">Draws: <span id="score-draw">0</span></div>
+            </div>
+            <div class="pill">Rounds played: <span id="rounds">0</span></div>
+          </div>
+
+          <div id="result" class="result" aria-live="assertive">Make your move!</div>
+
+          <div class="log" id="log"></div>
+        </main>
+
+        <aside class="controls">
+          <div class="row">
+            <label for="bestOf">Best of</label>
+            <select id="bestOf" aria-label="best of rounds">
+              <option value="1">1</option>
+              <option value="3" selected>3</option>
+              <option value="5">5</option>
+              <option value="7">7</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="difficulty">Difficulty</label>
+            <select id="difficulty" aria-label="difficulty">
+              <option value="random">Random</option>
+              <option value="freq" selected>Predict by frequency</option>
+              <option value="history">Sequence predictor</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="noise">CPU randomness</label>
+            <input id="noise" type="range" min="0" max="0.9" step="0.05" value="0.25">
+          </div>
+
+          <div class="row">
+            <label>Controls</label>
+            <div style="flex:1;color:var(--muted);font-size:13px">Keyboard: R = Rock, P = Paper, S = Scissors</div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+            <button id="reset" class="reset">Reset</button>
+            <button id="undo" class="reset">Undo last</button>
+          </div>
+
+          <div style="margin-top:12px;color:var(--muted);font-size:13px">
+            <strong>How CPU works:</strong>
+            <div style="margin-top:6px">• <em>Random</em> — picks uniformly.
+            <br>• <em>Predict by frequency</em> — tracks your move counts and counters your most likely move.
+            <br>• <em>Sequence predictor</em> — checks recent sequences (3-grams) and predicts next move from history.
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="footer">
+        <div style="display:flex;gap:12px;align-items:center">
+          <small class="muted">Tip: increase noise to make CPU less predictable.</small>
+        </div>
+        <div>
+          <small id="statusText">Ready</small>
+        </div>
+      </div>
+
+      <footer class="small">Made with ❤️ — single-file HTML/JS. Feel free to copy and run locally.</footer>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const moves=['rock','paper','scissors'];
+      const beats={rock:'scissors',paper:'rock',scissors:'paper'};
+      const buttons=document.querySelectorAll('.btn');
+      const scoreUser=document.getElementById('score-user');
+      const scoreCpu=document.getElementById('score-cpu');
+      const scoreDraw=document.getElementById('score-draw');
+      const resultEl=document.getElementById('result');
+      const log=document.getElementById('log');
+      const bestOf=document.getElementById('bestOf');
+      const difficulty=document.getElementById('difficulty');
+      const noise=document.getElementById('noise');
+      const reset=document.getElementById('reset');
+      const undo=document.getElementById('undo');
+      const roundsEl=document.getElementById('rounds');
+      const statusText=document.getElementById('statusText');
+
+      let state={user:0,cpu:0,draw:0,rounds:0,history:[],past:[]};
+
+      function addLog(text){
+        const p=document.createElement('p');p.textContent=text;log.prepend(p);
+      }
+
+      function cpuChoose(){
+        const diff=difficulty.value;const rnd=parseFloat(noise.value);
+        // If random difficulty -> pick uniformly
+        if(diff==='random') return moves[Math.floor(Math.random()*3)];
+
+        // frequency predictor: find user's most frequent move and counter it
+        const counts={rock:0,paper:0,scissors:0};
+        for(const h of state.history) counts[h]++;
+        const most = Object.keys(counts).reduce((a,b)=>counts[a]>=counts[b]?a:b);
+
+        // sequence predictor (simple k-gram: look for last 2 moves)
+        if(diff==='history' && state.history.length>=2){
+          const key = state.history.slice(-2).join('|');
+          // find occurrences of that key and the following move
+          const nextCounts={rock:0,paper:0,scissors:0};
+          for(let i=0;i<state.history.length-2;i++){
+            if(state.history[i]+ '|' + state.history[i+1] === key){
+              nextCounts[state.history[i+2]]++;
+            }
+          }
+          const total = nextCounts.rock+nextCounts.paper+nextCounts.scissors;
+          if(total>0){
+            const predicted = Object.keys(nextCounts).reduce((a,b)=>nextCounts[a]>=nextCounts[b]?a:b);
+            // with some randomness
+            if(Math.random()>rnd) return counter(predicted);
+          }
+        }
+
+        // fallback to frequency prediction
+        if(Math.random() > rnd){
+          return counter(most);
+        } else {
+          return moves[Math.floor(Math.random()*3)];
+        }
+      }
+
+      function counter(move){
+        // returns the move that beats `move`
+        if(move==='rock') return 'paper';
+        if(move==='paper') return 'scissors';
+        return 'rock';
+      }
+
+      function decide(u,c){
+        if(u===c) return 'draw';
+        if(beats[u]===c) return 'win';
+        return 'lose';
+      }
+
+      function highlightBtns(userMove,cpuMove,outcome){
+        buttons.forEach(b=>b.classList.remove('primary','anim-win','anim-lose','anim-draw'));
+        const um = document.querySelector('.btn[data-move="'+userMove+'"]');
+        const cm = document.querySelector('.btn[data-move="'+cpuMove+'"]');
+        if(outcome==='win'){um.classList.add('anim-win'); cm.classList.add('anim-lose')}
+        else if(outcome==='lose'){um.classList.add('anim-lose'); cm.classList.add('anim-win')}
+        else {um.classList.add('anim-draw'); cm.classList.add('anim-draw')}
+      }
+
+      function play(userMove){
+        const cpuMove = cpuChoose();
+        const outcome = decide(userMove,cpuMove);
+
+        state.rounds++;
+        state.history.push(userMove);
+        state.past.push({user:userMove,cpu:cpuMove,outcome:outcome});
+
+        if(outcome==='win') state.user++;
+        else if(outcome==='lose') state.cpu++;
+        else state.draw++;
+
+        scoreUser.textContent=state.user;scoreCpu.textContent=state.cpu;scoreDraw.textContent=state.draw;roundsEl.textContent=state.rounds;
+
+        resultEl.textContent = `You played ${userMove.toUpperCase()} — CPU played ${cpuMove.toUpperCase()} — ${outcome.toUpperCase()}`;
+        addLog(`#${state.rounds}: You ${userMove} — CPU ${cpuMove} → ${outcome}`);
+        highlightBtns(userMove,cpuMove,outcome);
+        statusText.textContent = `Last: ${userMove} vs ${cpuMove} — ${outcome}`;
+
+        checkBestOf();
+      }
+
+      function checkBestOf(){
+        const winsNeeded = Math.ceil(parseInt(bestOf.value)/2);
+        if(state.user>=winsNeeded || state.cpu>=winsNeeded){
+          // game over
+          if(state.user>state.cpu) resultEl.textContent = `You won the match ${state.user} — ${state.cpu}`;
+          else if(state.cpu>state.user) resultEl.textContent = `CPU won the match ${state.cpu} — ${state.user}`;
+          else resultEl.textContent = `Match ended in a tie ${state.user} — ${state.cpu}`;
+          statusText.textContent = 'Match finished — reset to play again.';
+        }
+      }
+
+      buttons.forEach(b=>b.addEventListener('click',()=>{
+        if(parseInt(bestOf.value) && (state.user>=Math.ceil(bestOf.value/2) || state.cpu>=Math.ceil(bestOf.value/2))){
+          addLog('Match already finished — reset to start a new match.');return;
+        }
+        play(b.dataset.move);
+      }));
+
+      // keyboard support
+      window.addEventListener('keydown',e=>{
+        if(e.key.toLowerCase() === 'r') document.querySelector('.btn[data-move=rock]').click();
+        if(e.key.toLowerCase() === 'p') document.querySelector('.btn[data-move=paper]').click();
+        if(e.key.toLowerCase() === 's') document.querySelector('.btn[data-move=scissors]').click();
+      });
+
+      reset.addEventListener('click',()=>{
+        state={user:0,cpu:0,draw:0,rounds:0,history:[],past:[]};
+        scoreUser.textContent='0';scoreCpu.textContent='0';scoreDraw.textContent='0';roundsEl.textContent='0';
+        resultEl.textContent='Make your move!';log.innerHTML='';statusText.textContent='Ready';
+        buttons.forEach(b=>b.classList.remove('anim-win','anim-lose','anim-draw'));
+      });
+
+      undo.addEventListener('click',()=>{
+        if(state.past.length===0) { addLog('Nothing to undo'); return }
+        const last = state.past.pop();
+        // revert counts and history
+        state.history.pop();state.rounds--;
+        if(last.outcome==='win') state.user--; else if(last.outcome==='lose') state.cpu--; else state.draw--;
+        scoreUser.textContent=state.user;scoreCpu.textContent=state.cpu;scoreDraw.textContent=state.draw;roundsEl.textContent=state.rounds;
+        addLog(`Undid last round: You ${last.user} — CPU ${last.cpu} (${last.outcome})`);
+        resultEl.textContent='Last move undone.';statusText.textContent='Undid last round.';
+      });
+
+      // Accessibility: allow focus + enter
+      buttons.forEach(b=>b.addEventListener('keydown',e=>{ if(e.key==='Enter' || e.key===' ') b.click(); }));
+
+      // small helpful demo moves to populate history
+      addLog('Welcome! Use R / P / S keys or click a button to play.');
+    })();
+  </script>
+</body>
+</html>
